@@ -5,6 +5,7 @@
     <RootNamespace>SkyWriter.Console</RootNamespace>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
 
   <ItemGroup>

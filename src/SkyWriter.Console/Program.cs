@@ -4,6 +4,8 @@ using Microsoft.Extensions.Logging;
 using NAudio.CoreAudioApi;
 using SkyWriter.Core;
 
+internal record AudioDevice(string DeviceName, string DeviceId);
+
 internal class Program
 {
     private static ILogger _logger = new Logger();
@@ -40,7 +42,7 @@ internal class Program
             config?["AzureSpeechRegion"],
             config?["AzureSpeechLanguage"],
             (ProfanityOption)rawProfanityOption,
-            "Microphone",
+            config?["ObsMicrophoneSourceName"] ?? "Microphone",
             _logger
         );
 
@@ -119,5 +121,3 @@ internal class Logger : ILogger
         Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {formatter(state, exception)}");
     }
 }
-
-internal record AudioDevice(string DeviceName, string DeviceId);
