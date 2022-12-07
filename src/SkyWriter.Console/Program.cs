@@ -21,8 +21,6 @@ internal class Program
 
         config = builder.Build();
 
-        Console.WriteLine(config["AzureSpeechRegion"]);
-
         ShowSplash();
 
         var deviceId = InitializeAudioDevice();
