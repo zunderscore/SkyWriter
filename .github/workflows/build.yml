@@ -91,6 +91,8 @@ jobs:
       - name: Draft Rekease
         id: draft
         uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ needs.checktag.outputs.version }}
           release_name: SkyWriter v${{ needs.checktag.outputs.version }}
@@ -100,6 +102,8 @@ jobs:
 
       - name: Upload asset
         uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.draft.outputs.upload_url }}
           asset_path: "./artifacts/${{ env.artifact_name }}/SkyWriter.zip"
