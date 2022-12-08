@@ -23,9 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v2
 
-      - name: Fetch tags
-        run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
-
       - name: Get csproj version
         id: project_version
         uses: KageKirin/get-csproj-version@v0
