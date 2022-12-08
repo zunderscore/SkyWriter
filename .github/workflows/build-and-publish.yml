@@ -1,15 +1,20 @@
 # This workflow will build a .NET project
 # For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-net
 
-name: .NET
+name: .NET Build
+
+env:
+  dotnet_version: 7.0.x
+  project_path: ./src/SkyWriter.Console/
+  publish_path: bin/Release/net7.0/win-x64/publish/
 
 on:
+  workflow_dispatch:
   push:
     branches: [ "main" ]
 
 jobs:
   build:
-
     runs-on: windows-latest
 
     steps:
@@ -17,15 +22,15 @@ jobs:
     - name: Setup .NET
       uses: actions/setup-dotnet@v3
       with:
-        dotnet-version: 7.0.x
+        dotnet-version: ${{ env.dotnet_version }}
     - name: Restore dependencies
-      run: dotnet restore ./src/SkyWriter.Console/
+      run: dotnet restore ${{ env.project_path }}
     - name: Build
-      run: dotnet build ./src/SkyWriter.Console/ --no-restore
+      run: dotnet build ${{ env.project_path }} --no-restore
     - name: Publish
-      run: dotnet publish ./src/SkyWriter.Console/ -c Release
+      run: dotnet publish ${{ env.project_path }} -c Release
     - name: Upload artifacts
       uses: actions/upload-artifact@v1
       with:
-        name: Release
-        path: './src/SkyWriter.Console/bin/Release/net7.0/win-x64/publish/'
+        name: SkyWriter win-x64 Release
+        path: '${{ env.project_path }}${{ env.publish_path }}'
