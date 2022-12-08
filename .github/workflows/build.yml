@@ -1,0 +1,99 @@
+name: .NET Build
+
+env:
+  dotnet_version: 7.0.x
+  project_path: ./src/SkyWriter.Console/
+  project_file: SkyWriter.Console.csproj
+  publish_path: bin/Release/net7.0/win-x64/publish/
+  artifact_name: SkyWriter win-x64 Release
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  checktag:
+    name: Check for existing version tag
+    runs-on: ubuntu-latest
+
+    outputs:
+      version: ${{ steps.set_output.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Fetch tags
+        run: git fetch --depth=1 origin +refs/tags/*:refs/tags/*
+
+      - name: Get csproj version
+        id: project_version
+        uses: KageKirin/get-csproj-version@v0
+        with:
+          file: "${{ env.project_path }}${{ env.project_file }}"
+
+      - name: Check for corresponding git tag
+        shell: bash
+        run: git show-ref --tags --verify --quiet -- "refs/tags/v${{ steps.project_version.outputs.version }}" && exit 1
+
+      - name: Set Output
+        id: set_output
+        run: echo "::set-output name=version::${{ steps.project_version.outputs.version }}"
+
+  build:
+    name: Build SkyWriter
+    needs: checktag
+    runs-on: windows-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v3
+      with:
+        dotnet-version: ${{ env.dotnet_version }}
+
+    - name: Restore dependencies
+      run: dotnet restore ${{ env.project_path }}
+
+    - name: Build
+      run: dotnet build ${{ env.project_path }} --no-restore
+
+    - name: Publish
+      run: dotnet publish ${{ env.project_path }} -c Release
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v1
+      with:
+        name: ${{ env.artifact_name }}
+        path: "${{ env.project_path }}${{ env.publish_path }}"
+
+  release:
+    name: Draft Release
+    needs: [ checktag, build ]
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Download Artifact
+      uses: actions/download-artifact@v2
+      with:
+        name: ${{ env.artifact_name }}
+        path: ./bundles/
+
+    - name: Draft Rekease
+      id: draft
+      uses: actions/create-release@1
+      with:
+        tag_name: v${{ needs.checktag.outputs.version }}
+        release_name: SkyWriter v${{ needs.checktag.outputs.version }}
+        body: "## SkyWriter v${{ needs.checktag.outputs.version }} Release Notes\n\n"
+        draft: true
+        prerelease: false
+
+    - name: Upload asset
+      uses: actions/upload-release-asset@v1
+      with:
+          upload_url: ${{ steps.draft.outputs.upload_url }}
+          asset_path: "./bundles/${{ env.artifact_name }}.zip"
+          asset_name: "SkyWriter v${{ needs.checktag.outputs.version }}.zip"
+          asset_content_type: application/octet-stream
