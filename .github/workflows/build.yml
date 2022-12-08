@@ -78,7 +78,7 @@ jobs:
       uses: actions/download-artifact@v2
       with:
         name: ${{ env.artifact_name }}
-        path: ./bundles/
+        path: ./artifacts/
 
     - name: Draft Rekease
       id: draft
@@ -94,6 +94,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
           upload_url: ${{ steps.draft.outputs.upload_url }}
-          asset_path: "./bundles/${{ env.artifact_name }}.zip"
+          asset_path: "./artifacts/${{ env.artifact_name }}.zip"
           asset_name: "SkyWriter v${{ needs.checktag.outputs.version }}.zip"
           asset_content_type: application/octet-stream
