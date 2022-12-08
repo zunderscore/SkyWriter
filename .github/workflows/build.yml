@@ -33,8 +33,14 @@ jobs:
           file: "${{ env.project_path }}${{ env.project_file }}"
 
       - name: Check for corresponding git tag
-        shell: bash
-        run: git show-ref --tags --verify --quiet -- "refs/tags/v${{ steps.project_version.outputs.version }}" && exit 1
+        id: tag_check
+        uses: mukunku/tag-exists-action@v1.2.0
+        with: 
+          tag: "v${{ steps.project_version.outputs.version }}"
+
+      - name: Fail on existing tag
+        if: ${{ steps.tag_check.outputs.exists }} == "true"
+        run: exit 1
 
       - name: Set Output
         id: set_output
