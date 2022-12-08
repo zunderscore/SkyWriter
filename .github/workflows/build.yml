@@ -61,12 +61,17 @@ jobs:
 
     - name: Publish
       run: dotnet publish ${{ env.project_path }} -c Release
+      
+    - name: Zip artifact
+      uses: montudor/action-zip@v1
+      with:
+        args: zip -qq -r SkyWriter.zip "${{ env.project_path }}${{ env.publish_path }}"
 
-    - name: Upload artifacts
+    - name: Upload artifact
       uses: actions/upload-artifact@v1
       with:
         name: ${{ env.artifact_name }}
-        path: "${{ env.project_path }}${{ env.publish_path }}"
+        path: SkyWriter.zip
 
   release:
     name: Draft Release
@@ -94,6 +99,6 @@ jobs:
       uses: actions/upload-release-asset@v1
       with:
           upload_url: ${{ steps.draft.outputs.upload_url }}
-          asset_path: "./artifacts/${{ env.artifact_name }}.zip"
+          asset_path: "./artifacts/${{ env.artifact_name }}/SkyWriter.zip"
           asset_name: "SkyWriter v${{ needs.checktag.outputs.version }}.zip"
           asset_content_type: application/octet-stream
