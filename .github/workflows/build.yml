@@ -65,17 +65,18 @@ jobs:
       - name: Publish
         run: dotnet publish ${{ env.project_path }} -c Release
 
-      - name: Zip artifact
+      - name: Install zip
         uses: montudor/action-zip@v1
-        with:
-          args: zip -qq -r SkyWriter.zip *
-          working-directory: "${{ env.project_path }}${{ env.publish_path }}"
+
+      - name: Zip artifact
+        run: zip -qq -r SkyWriter.zip *
+        working-directory: "${{ env.project_path }}${{ env.publish_path }}"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v1
         with:
           name: ${{ env.artifact_name }}
-          path: SkyWriter.zip
+          path: "${{ env.project_path }}${{ env.publish_path }}SkyWriter.zip"
 
   release:
     name: Draft Release
