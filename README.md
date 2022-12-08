@@ -5,8 +5,9 @@ SkyWriter uses Azure Cognitive Services speech-to-text to generate captions and 
 it's connected to OBS and detects that a stream is active & your primary microphone source is unmuted. If you mute that source or stop streaming,
 the session will automatically end.
 
-### Reqirements
+### Requirements
 
+- Windows 10, 1607+ or Windows 11
 - OBS 28.0+
 - An active Azure Cognitive Services instance
 

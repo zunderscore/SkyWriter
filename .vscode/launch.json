@@ -10,7 +10,7 @@
             "request": "launch",
             "preLaunchTask": "build",
             // If you have changed target frameworks, make sure to update the program path.
-            "program": "${workspaceFolder}/src/SkyWriter.Console/bin/Debug/net7.0/SkyWriter.Console.dll",
+            "program": "${workspaceFolder}/src/SkyWriter.Console/bin/Debug/net7.0/win-x64/SkyWriter.Console.dll",
             "args": [],
             "cwd": "${workspaceFolder}/src/SkyWriter.Console",
             // For more information about the 'console' field, see https://aka.ms/VSCode-CS-LaunchJson-Console
