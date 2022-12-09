@@ -100,7 +100,7 @@ jobs:
         with:
           tag_name: v${{ needs.checktag.outputs.version }}
           release_name: SkyWriter v${{ needs.checktag.outputs.version }}
-          body: "## SkyWriter v${{ needs.checktag.outputs.version }} Release Notes\n\n"
+          body: "## Release Notes\n\n- \n\n### Instructions\n\nDownload, unzip, and set the values listed in the [readme](https://github.com/zunderscore/SkyWriter/blob/main/README.md) in `appsettings.json`. Then run `SkyWriter.Console.exe`."
           draft: true
           prerelease: false
 

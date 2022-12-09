@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using NAudio.CoreAudioApi;
 using SkyWriter.Core;
+using System.Reflection;
 
 internal record AudioDevice(string DeviceName, string DeviceId);
 
@@ -48,6 +49,7 @@ internal class Program
         {
             e.Cancel = true;
             await session.EndSession();
+            _logger.LogInformation("Exiting SkyWriter");
             return;
         };
 
@@ -66,6 +68,8 @@ internal class Program
         Console.WriteLine("|   ███████ ██   ██    ██     ███ ███  ██   ██ ██    ██    ███████ ██   ██   |");
         Console.WriteLine("|                                                                            |");
         Console.WriteLine("+----------------------------------------------------------------------------+");
+        Console.WriteLine();
+        _logger.LogInformation($"SkyWriter Version {Assembly.GetEntryAssembly()!.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!.InformationalVersion} started");
         Console.WriteLine();
     }
 
@@ -104,6 +108,11 @@ internal class Program
 
 internal class Logger : ILogger
 {
+    public Logger()
+    {
+        Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "logs"));
+    }
+
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull
     {
         return null;
@@ -116,6 +125,40 @@ internal class Logger : ILogger
 
     public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter)
     {
-        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {formatter(state, exception)}");
+        var logLevelString = String.Empty;
+
+        switch (logLevel)
+        {
+            case LogLevel.Critical:
+                logLevelString = "critical";
+                break;
+
+            case LogLevel.Error:
+                logLevelString = "error";
+                break;
+
+            case LogLevel.Warning:
+                logLevelString = "warning";
+                break;
+
+            case LogLevel.Trace:
+                logLevelString = "trace";
+                break;
+
+            case LogLevel.Debug:
+                logLevelString = "debug";
+                break;
+
+            case LogLevel.Information:
+            default:
+                logLevelString = "info";
+                break;
+        }
+
+        var formattedLogMessage = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] {logLevelString}: {formatter(state, exception)}";
+        var logFileName = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location)!, "logs", $"{DateTime.Now:yyyy-MM-dd}.log");
+
+        Console.WriteLine(formattedLogMessage);
+        File.AppendAllText(logFileName, formattedLogMessage + Environment.NewLine);
     }
 }
