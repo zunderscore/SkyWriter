@@ -11,5 +11,6 @@
     <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
     <PackageReference Include="NAudio" Version="2.1.0" />
     <PackageReference Include="obs-websocket-dotnet" Version="5.0.0.3" />
+    <PackageReference Include="System.Speech" Version="7.0.0" />
   </ItemGroup>
 </Project>

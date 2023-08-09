@@ -3,6 +3,7 @@ using Microsoft.CognitiveServices.Speech.Audio;
 using Microsoft.Extensions.Logging;
 using OBSWebsocketDotNet;
 using OBSWebsocketDotNet.Communication;
+using System.Speech.Recognition;
 
 namespace SkyWriter.Core;
 
@@ -23,12 +24,15 @@ public class SkyWriterSession
     private string _obsWebsocketPassword = String.Empty;
     private string _obsMicInputName = "Microphone";
 
+    private bool _useLocalSpeechEngine = false;
+
     public SkyWriterSession(
         string audioDeviceId,
         string key,
         string obsWebsocketHost,
         int obsWebsocketPort,
         string obsWebsocketPassword,
+        bool useLocalSpeechEngine,
         string? azureRegion = null,
         string? language = null,
         ProfanityOption profanityOption = ProfanityOption.Masked,
@@ -42,6 +46,14 @@ public class SkyWriterSession
         _obsMicInputName = obsMicInputName ?? _obsMicInputName;
 
         _audioDeviceId = audioDeviceId;
+
+        _useLocalSpeechEngine = useLocalSpeechEngine;
+
+        if (_useLocalSpeechEngine && !System.OperatingSystem.IsWindows())
+        {
+            throw new ArgumentException("useLocalSpeechEngine can only be 'true' on Windows platforms. All other platforms must set 'false' to use Azure Speech.");
+        }
+
         _azureKey = key;
         _azureRegion = azureRegion ?? _azureRegion;
         _language = language ?? _language;
@@ -50,7 +62,8 @@ public class SkyWriterSession
         _logger = logger;
     }
 
-    public SpeechRecognizer? MainRecognizer { get; private set; }
+    public Microsoft.CognitiveServices.Speech.SpeechRecognizer? AzureRecognizer { get; private set; }
+    public System.Speech.Recognition.SpeechRecognitionEngine? LocalRecognizer { get; private set; }
 
     private OBSWebsocket _obsConnection = new();
     public OBSWebsocket ObsConnection => _obsConnection;
@@ -101,7 +114,7 @@ public class SkyWriterSession
     {
         _runLoop = false;
         _logger?.LogInformation("Cleaning up...");
-        if (MainRecognizer is not null) await MainRecognizer.StopContinuousRecognitionAsync();
+        if (AzureRecognizer is not null) await AzureRecognizer.StopContinuousRecognitionAsync();
         if (_obsConnection is not null && _obsConnection.IsConnected) _obsConnection.Disconnect();
     }
 
@@ -114,39 +127,53 @@ public class SkyWriterSession
 
     private void InitializeRecognizer()
     {
-        var speechConfig = SpeechConfig.FromSubscription(_azureKey, _azureRegion);
-        speechConfig.SpeechRecognitionLanguage = _language;
-        speechConfig.SetProfanity(_profanityOption);
-
-        var mainAudioDeviceId = _audioDeviceId;
-        var mainAudioConfig = AudioConfig.FromMicrophoneInput(mainAudioDeviceId);
-        MainRecognizer = new SpeechRecognizer(speechConfig, mainAudioConfig);
-
-        MainRecognizer.SessionStarted += (sender, args) =>
+        if (_useLocalSpeechEngine)
         {
-            IsRecognizerRunning = true;
-        };
+            _logger?.LogInformation("Using local speech engine");
 
-        MainRecognizer.SessionStopped += (sender, args) =>
-        {
-            IsRecognizerRunning = false;
-        };
+            // We already check that it's Windows on startup, so no need to warn here.
+#pragma warning disable CA1416
+            LocalRecognizer = new System.Speech.Recognition.SpeechRecognitionEngine(
+                new System.Globalization.CultureInfo(_language)
+            );
 
-        MainRecognizer.Recognized += (sender, args) =>
-        {
-            if (_isStreamRunning && _isMicActive && args.Result.Text.Trim() != String.Empty)
+            LocalRecognizer.LoadGrammar(new DictationGrammar());
+
+            LocalRecognizer.SetInputToDefaultAudioDevice();
+
+            LocalRecognizer.SpeechRecognized += (sender, args) =>
             {
-                try
-                {
-                    _obsConnection.SendStreamCaption(args.Result.Text);
-                    _logger?.LogInformation($"Recognized/sent to OBS: {args.Result.Text}");
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogInformation($"Error sending caption to OBS: {ex.Message}; {ex.InnerException?.Message}");
-                }
-            }
-        };
+                SendTextToObs(args.Result.Text);
+            };
+#pragma warning restore CA1416
+        }
+        else
+        {
+            _logger?.LogInformation("Using Azure speech engine");
+
+            var speechConfig = SpeechConfig.FromSubscription(_azureKey, _azureRegion);
+            speechConfig.SpeechRecognitionLanguage = _language;
+            speechConfig.SetProfanity(_profanityOption);
+
+            var mainAudioDeviceId = _audioDeviceId;
+            var mainAudioConfig = AudioConfig.FromMicrophoneInput(mainAudioDeviceId);
+            AzureRecognizer = new Microsoft.CognitiveServices.Speech.SpeechRecognizer(speechConfig, mainAudioConfig);
+
+            AzureRecognizer.SessionStarted += (sender, args) =>
+            {
+                IsRecognizerRunning = true;
+            };
+
+            AzureRecognizer.SessionStopped += (sender, args) =>
+            {
+                IsRecognizerRunning = false;
+            };
+
+            AzureRecognizer.Recognized += (sender, args) =>
+            {
+                SendTextToObs(args.Result.Text);
+            };
+        }
     }
 
     private void InitializeObsConnection()
@@ -159,7 +186,7 @@ public class SkyWriterSession
         _obsConnection.StreamStateChanged += async (sender, args) =>
         {
             IsStreamRunning = args.OutputState.IsActive;
-            await CheckMainRecognizerState();
+            await CheckRecognizerState();
         };
 
         _obsConnection.InputMuteStateChanged += async (sender, args) =>
@@ -167,7 +194,7 @@ public class SkyWriterSession
             if (args.InputName != "Microphone") return;
 
             IsMicActive = !args.InputMuted;
-            await CheckMainRecognizerState();
+            await CheckRecognizerState();
         };
     }
 
@@ -179,7 +206,7 @@ public class SkyWriterSession
         IsStreamRunning = _obsConnection.GetStreamStatus().IsActive;
         IsMicActive = !_obsConnection.GetInputMute("Microphone");
 
-        await CheckMainRecognizerState();
+        await CheckRecognizerState();
     }
 
     private async void OnObsDisconnected(object? sender, ObsDisconnectionInfo e)
@@ -189,7 +216,7 @@ public class SkyWriterSession
         {
             _logger?.LogInformation("Disconnected from OBS");
 
-            await CheckMainRecognizerState();
+            await CheckRecognizerState();
 
             _logger?.LogInformation("Waiting for OBS connection to close...");
 
@@ -218,19 +245,59 @@ public class SkyWriterSession
         }
     }
 
-    private async Task CheckMainRecognizerState()
+    private void SendTextToObs(string text)
     {
-        if (MainRecognizer is null) return;
+        if (_isStreamRunning && _isMicActive && text.Trim() != String.Empty)
+        {
+            try
+            {
+                _obsConnection.SendStreamCaption(text);
+                _logger?.LogInformation($"Recognized/sent to OBS: {text}");
+            }
+            catch (Exception ex)
+            {
+                _logger?.LogInformation($"Error sending caption to OBS: {ex.Message}; {ex.InnerException?.Message}");
+            }
+        }
+    }
+
+    private async Task CheckRecognizerState()
+    {
+        if (AzureRecognizer is null && LocalRecognizer is null) return;
 
         if (_obsConnection.IsConnected && !IsRecognizerRunning && ShouldRunRecognizer)
         {
-            await MainRecognizer.StartContinuousRecognitionAsync();
+            if (_useLocalSpeechEngine)
+            {
+                if (LocalRecognizer is null) return;
+                IsRecognizerRunning = true;
+#pragma warning disable CA1416
+                LocalRecognizer.RecognizeAsync(RecognizeMode.Multiple);
+#pragma warning restore CA1416
+            }
+            else
+            {
+                if (AzureRecognizer is null) return;
+                await AzureRecognizer.StartContinuousRecognitionAsync();
+            }
 
             _logger?.LogInformation("Recognition started");
         }
         else if (!_obsConnection.IsConnected || (IsRecognizerRunning && !ShouldRunRecognizer))
         {
-            await MainRecognizer.StopContinuousRecognitionAsync();
+            if (_useLocalSpeechEngine)
+            {
+                if (LocalRecognizer is null) return;
+#pragma warning disable CA1416
+                LocalRecognizer.RecognizeAsyncStop();
+#pragma warning restore CA1416
+                IsRecognizerRunning = false;
+            }
+            else
+            {
+                if (AzureRecognizer is null) return;
+                await AzureRecognizer.StopContinuousRecognitionAsync();
+            }
 
             _logger?.LogInformation("Recognition stopped");
         }

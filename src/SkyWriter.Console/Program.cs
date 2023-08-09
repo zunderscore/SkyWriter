@@ -24,13 +24,30 @@ internal class Program
 
         ShowSplash();
 
-        var deviceId = InitializeAudioDevice();
+        var useLocalSpeechEngineRaw = (String.IsNullOrWhiteSpace(config?["UseLocalSpeechEngine"]) ? "false" : config["UseLocalSpeechEngine"]) ?? "false";
+        var useLocalSpeechEngine = Boolean.Parse(useLocalSpeechEngineRaw);
+
+        if (useLocalSpeechEngine &&
+            !System.OperatingSystem.IsWindows())
+        {
+            _logger.LogError("Local recognition can only run on Windows. Other platforms must use Azure Speech. Exiting.");
+            return;
+        }
+
+        var deviceId = String.Empty;
+        if (useLocalSpeechEngine)
+        {
+            _logger.LogInformation("NOTE: Local recognition only works with the default audio input device. To change this, go to your Windows Speech Recognition settings.");
+        }
+        else
+        {
+            deviceId = InitializeAudioDevice();
+        }
 
         var obsPort = String.IsNullOrWhiteSpace(config?["ObsWebsocketPort"]) ? "4455" : config["ObsWebsocketPort"];
         var obsHost = String.IsNullOrWhiteSpace(config?["ObsWebsocketHost"]) ? "localhost" : config["ObsWebsocketHost"];
 
-        var rawProfanityOption = 0;
-        Int32.TryParse(config?["AzureSpeechProfanityLevel"], out rawProfanityOption);
+        Int32.TryParse(config?["AzureSpeechProfanityLevel"], out var rawProfanityOption);
 
         var session = new SkyWriterSession(
             deviceId,
@@ -38,8 +55,9 @@ internal class Program
             obsHost ?? String.Empty,
             Int32.TryParse(obsPort, out var obsWebsocketPort) ? obsWebsocketPort : 4455,
             config?["ObsWebsocketPassword"] ?? String.Empty,
+            useLocalSpeechEngine,
             config?["AzureSpeechRegion"],
-            config?["AzureSpeechLanguage"],
+            config?["SpeechLanguage"],
             (ProfanityOption)rawProfanityOption,
             config?["ObsMicrophoneSourceName"] ?? "Microphone",
             _logger
