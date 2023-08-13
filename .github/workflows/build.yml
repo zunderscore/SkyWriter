@@ -107,4 +107,4 @@ jobs:
           draft: true
           prerelease: false
           files: |
-            "./artifacts/SkyWriter v${{ needs.checktag.outputs.version }}.zip"
+            ./artifacts/SkyWriter v${{ needs.checktag.outputs.version }}.zip
