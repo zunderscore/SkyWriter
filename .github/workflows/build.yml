@@ -27,9 +27,9 @@ jobs:
 
       - name: Get csproj version
         id: project_version
-        uses: KageKirin/get-csproj-version@v1
+        uses: bbonkr/get-version-action@v1
         with:
-          file: "${{ env.project_path }}${{ env.project_file }}"
+          project: "${{ env.project_path }}${{ env.project_file }}"
 
       - name: Check for corresponding git tag
         id: tag_check
@@ -97,7 +97,7 @@ jobs:
 
       - name: Draft Release
         id: draft
-        uses: softprops/action-gh-release@v0
+        uses: softprops/action-gh-release@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
