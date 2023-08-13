@@ -23,11 +23,11 @@ jobs:
       version: ${{ steps.set_output.outputs.version }}
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
 
       - name: Get csproj version
         id: project_version
-        uses: KageKirin/get-csproj-version@v0
+        uses: KageKirin/get-csproj-version@v1
         with:
           file: "${{ env.project_path }}${{ env.project_file }}"
 
@@ -43,7 +43,7 @@ jobs:
 
       - name: Set Output
         id: set_output
-        run: echo "::set-output name=version::${{ steps.project_version.outputs.version }}"
+        run: echo "version=${{ steps.project_version.outputs.version }}" >> $GITHUB_OUTPUT
 
   build:
     name: Build SkyWriter
@@ -87,29 +87,24 @@ jobs:
 
     steps:
       - name: Download Artifact
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: ${{ env.artifact_name }}
           path: ./artifacts/
 
-      - name: Draft Rekease
+      - name: Rename output asset
+        run: mv "./artifacts/SkyWriter.zip" "./artifacts/SkyWriter v${{ needs.checktag.outputs.version }}.zip"
+
+      - name: Draft Release
         id: draft
-        uses: actions/create-release@v1
+        uses: softprops/action-gh-release@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ needs.checktag.outputs.version }}
-          release_name: SkyWriter v${{ needs.checktag.outputs.version }}
+          name: SkyWriter v${{ needs.checktag.outputs.version }}
           body: "## Release Notes\n\n- \n\n### Instructions\n\nDownload, unzip, and set the values listed in the [readme](https://github.com/zunderscore/SkyWriter/blob/main/README.md) in `appsettings.json`. Then run `SkyWriter.Console.exe`."
           draft: true
           prerelease: false
-
-      - name: Upload asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.draft.outputs.upload_url }}
-          asset_path: "./artifacts/SkyWriter.zip"
-          asset_name: "SkyWriter v${{ needs.checktag.outputs.version }}.zip"
-          asset_content_type: application/octet-stream
+          files: |
+            "./artifacts/SkyWriter v${{ needs.checktag.outputs.version }}.zip"
