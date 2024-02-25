@@ -1,7 +1,7 @@
 name: .NET Build
 
 env:
-  dotnet_version: 7.0.x
+  dotnet_version: 8.0.x
   project_path: ./src/SkyWriter.Console/
   project_file: SkyWriter.Console.csproj
   publish_path: bin/Release/net8.0/win-x64/publish/

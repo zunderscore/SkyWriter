@@ -4,7 +4,7 @@
 name: Run .NET build on PR
 
 env:
-  dotnet_version: 7.0.x
+  dotnet_version: 8.0.x
   project_path: ./src/SkyWriter.Console/
 
 on:
