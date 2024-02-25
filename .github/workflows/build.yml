@@ -4,7 +4,7 @@ env:
   dotnet_version: 7.0.x
   project_path: ./src/SkyWriter.Console/
   project_file: SkyWriter.Console.csproj
-  publish_path: bin/Release/net7.0/win-x64/publish/
+  publish_path: bin/Release/net8.0/win-x64/publish/
   artifact_name: SkyWriter win-x64 Release
 
 on:
